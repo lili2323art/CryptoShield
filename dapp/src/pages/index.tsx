@@ -20,8 +20,8 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import Image from "next/image";
-import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { useEffect, useRef, useState } from "react";
+import { useWriteContract, useReadContract, useWaitForTransactionReceipt } from "wagmi";
 import { useToast } from "@/hooks/use-toast";
 import SliderCaptcha, { ActionType } from 'rc-slider-captcha';
 import { ArrowRepeat, EmojiFrownFill, EmojiSmileFill, Gem, Heart } from 'doly-icons';
@@ -53,6 +53,9 @@ const MintNFT: React.FC = () => {
       abi: NFT_CONTRACT_ABI,
       address: NFT_CONTRACT_ADDRESS,
       functionName: "mintNFT",
+      args: [
+        '0x285e6fbb504b57dca3ceacc851a7bfa37743c79b5c53fb184f4cc0b10ebff6ad245f558fa13540029f0ee2dc0bd73264cf04f28ba9c2520ad63ddb1f2e7e9b241c',
+      ],
     });
   };
 
