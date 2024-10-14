@@ -103,9 +103,6 @@ const MintNFT: React.FC = () => {
             : "Mint NFT"}
         </Button>
       </CardFooter>
-      {hash && <div>Transaction Hash: {hash}</div>}
-      {isConfirming && <div>Waiting for confirmation...</div>}
-      {isConfirmed && <div>NFT minted successfully!</div>}
     </Card>
   );
 };
