@@ -2,11 +2,6 @@ import ImageBg from '@/assets/1bg@2x.jpg';
 import ImagePuzzle from '@/assets/1puzzle@2x.png';
 
 export const getCaptcha = async () => {
-  console.log({
-    bgUrl: ImageBg,
-    puzzleUrl: ImagePuzzle
-  });
-
   return {
     bgUrl: ImageBg.src,
     puzzleUrl: ImagePuzzle.src

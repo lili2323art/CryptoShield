@@ -4,7 +4,8 @@
     "inputs": [
       { "name": "_name", "type": "string", "internalType": "string" },
       { "name": "_symbol", "type": "string", "internalType": "string" },
-      { "name": "_baseTokenURI", "type": "string", "internalType": "string" }
+      { "name": "_baseTokenURI", "type": "string", "internalType": "string" },
+      { "name": "_signerAddress", "type": "address", "internalType": "address" }
     ],
     "stateMutability": "nonpayable"
   },
@@ -63,7 +64,9 @@
   {
     "type": "function",
     "name": "mintNFT",
-    "inputs": [],
+    "inputs": [
+      { "name": "signature", "type": "bytes", "internalType": "bytes" }
+    ],
     "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
     "stateMutability": "nonpayable"
   },
@@ -138,6 +141,26 @@
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setSignerAddress",
+    "inputs": [
+      {
+        "name": "_newSignerAddress",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "signerAddress",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -285,6 +308,19 @@
     ],
     "anonymous": false
   },
+  { "type": "error", "name": "ECDSAInvalidSignature", "inputs": [] },
+  {
+    "type": "error",
+    "name": "ECDSAInvalidSignatureLength",
+    "inputs": [
+      { "name": "length", "type": "uint256", "internalType": "uint256" }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ECDSAInvalidSignatureS",
+    "inputs": [{ "name": "s", "type": "bytes32", "internalType": "bytes32" }]
+  },
   {
     "type": "error",
     "name": "ERC721IncorrectOwner",
@@ -356,6 +392,14 @@
     "name": "OwnableUnauthorizedAccount",
     "inputs": [
       { "name": "account", "type": "address", "internalType": "address" }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "StringsInsufficientHexLength",
+    "inputs": [
+      { "name": "value", "type": "uint256", "internalType": "uint256" },
+      { "name": "length", "type": "uint256", "internalType": "uint256" }
     ]
   }
 ]
