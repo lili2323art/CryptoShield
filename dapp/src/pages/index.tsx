@@ -21,15 +21,15 @@ import {
 } from "@/components/ui/carousel";
 import Image from "next/image";
 import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { parseEther } from "viem";
-import { useState } from "react";
+import { useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 // 假设这是您的 NFT 合约 ABI 和地址
 const NFT_CONTRACT_ABI = nftabis;
-const NFT_CONTRACT_ADDRESS = "0x207e1a15a1Ad9616cB326C5bBfcEc79d3a6D961B";
+const NFT_CONTRACT_ADDRESS = "0xECa46674517649d9eEDD1BADe61e7ec25e3c42F0";
 
 const MintNFT: React.FC = () => {
-  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const {
     data: hash,
@@ -47,9 +47,28 @@ const MintNFT: React.FC = () => {
     await writeContractAsync({
       abi: NFT_CONTRACT_ABI,
       address: NFT_CONTRACT_ADDRESS,
-      functionName: "mint",
+      functionName: "mintNFT",
     });
   };
+
+  useEffect(() => {
+    if (isConfirmed) {
+      toast({
+        title: "Success",
+        description: "NFT minted successfully!",
+      });
+    }
+  }, [isConfirmed, toast]);
+
+  useEffect(() => {
+    if (writeError) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: (writeError as Error)?.message || "An error occurred while minting",
+      });
+    }
+  }, [writeError, toast]);
 
   return (
     <Card className="w-[350px]">
@@ -63,7 +82,7 @@ const MintNFT: React.FC = () => {
             {[1, 2, 3].map((id) => (
               <CarouselItem key={id}>
                 <Image
-                  src={`/nft-preview-${id}.jpg`}
+                  src={`/nft/${id}.png`}
                   alt={`NFT Preview ${id}`}
                   width={300}
                   height={300}
@@ -87,9 +106,6 @@ const MintNFT: React.FC = () => {
       {hash && <div>Transaction Hash: {hash}</div>}
       {isConfirming && <div>Waiting for confirmation...</div>}
       {isConfirmed && <div>NFT minted successfully!</div>}
-      {(error || writeError) && (
-        <div>Error: {error || (writeError as Error)?.message}</div>
-      )}
     </Card>
   );
 };

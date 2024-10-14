@@ -1,5 +1,6 @@
-import '../styles/globals.css';
+import '@/src/styles/globals.css';
 import '@rainbow-me/rainbowkit/styles.css';
+import { Toaster } from "@/components/ui/toaster"
 import type { AppProps } from 'next/app';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -16,6 +17,7 @@ function MyApp({ Component, pageProps }: AppProps) {
       <QueryClientProvider client={client}>
         <RainbowKitProvider>
           <Component {...pageProps} />
+          <Toaster />
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

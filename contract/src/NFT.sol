@@ -21,8 +21,6 @@ contract PotsNFT is ERC721, Ownable {
 
     function mintNFT() public returns (uint256) {
         require(_currentTokenId < MAX_SUPPLY, "Max supply reached");
-        // 获取当前交易hash
-        bytes32 hash = keccak256(abi.encodePacked(block.prevrandao, block.timestamp, msg.sender));
         _currentTokenId++;
         uint256 newItemId = _currentTokenId;
         _safeMint(msg.sender, newItemId);
