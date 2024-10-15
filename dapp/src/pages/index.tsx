@@ -37,11 +37,22 @@ import {
 } from "doly-icons";
 import { getCaptcha, verifyCaptcha } from "@/services/captchaService";
 import { useAccount } from "wagmi";
-import { encodeAbiParameters, keccak256, parseAbiParameters, recoverMessageAddress, toBytes } from "viem";
+import {
+  encodeAbiParameters,
+  keccak256,
+  parseAbiParameters,
+  recoverMessageAddress,
+  toBytes,
+} from "viem";
 
 // 假设这是您的 NFT 合约 ABI 和地址
 const NFT_CONTRACT_ABI = nftabis;
 const NFT_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
+
+const hasSecurityParam = (): boolean => {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.has("security_token"); // 假设安全参数名为 'security_token'
+};
 
 const MintNFT: React.FC = () => {
   const { toast } = useToast();
@@ -49,6 +60,10 @@ const MintNFT: React.FC = () => {
   const captchaActionRef = useRef<ActionType>();
   const { address } = useAccount();
   const [signature, setSignature] = useState<string | null>(null);
+  const [currentTokenId, setCurrentTokenId] = useState<bigint | undefined>(
+    undefined
+  );
+  const [hasSecurityToken, setHasSecurityToken] = useState<boolean>(false);
 
   const {
     data: hash,
@@ -62,61 +77,161 @@ const MintNFT: React.FC = () => {
       hash,
     });
 
-  const { data: currentTokenId } = useReadContract({
+  const { data: totalSupply, refetch: refetchTotalSupply } = useReadContract({
     abi: NFT_CONTRACT_ABI,
     address: NFT_CONTRACT_ADDRESS as `0x${string}`,
     functionName: "totalSupply",
   });
 
-  const getSignature = async () => {
-    if (!address || currentTokenId === undefined) return;
+  useEffect(() => {
+    if (totalSupply !== undefined) {
+      setCurrentTokenId(BigInt(Number(totalSupply)));
+    }
+  }, [totalSupply]);
+
+  useEffect(() => {
+    setHasSecurityToken(hasSecurityParam());
+  }, []);
+
+  const refreshTotalSupply = async () => {
+    const { data } = await refetchTotalSupply();
+    if (data !== undefined) {
+      setCurrentTokenId(BigInt(Number(data)));
+    }
+  };
+
+  const getSignature = async (): Promise<string | null> => {
+    if (!address || currentTokenId === undefined) {
+      console.error("Address or currentTokenId is undefined");
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Wallet not connected or token ID not available.",
+      });
+      return null;
+    }
+
+    if (!isCaptchaVerified) {
+      console.error("Captcha not verified");
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please complete the captcha verification first.",
+      });
+      return null;
+    }
 
     const response = await fetch("/api/sign-mint", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ address, tokenId: Number(currentTokenId) + 1 }),
+      body: JSON.stringify({
+        address,
+        tokenId: Number(currentTokenId) + 1,
+        captchaVerified: isCaptchaVerified,
+        securityToken: hasSecurityToken
+          ? new URLSearchParams(window.location.search).get("security_token")
+          : undefined,
+      }),
     });
 
+    if (!response.ok) {
+      const errorData = await response.json();
+      let errorMessage =
+        errorData.error || `HTTP error! status: ${response.status}`;
+
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMessage,
+      });
+
+      console.log("errorData", errorData);
+
+      return null;
+    }
+
     const data = await response.json();
+    if (!data.signature) {
+      throw new Error("Signature is missing from the response");
+    }
+
     setSignature(data.signature);
+    return data.signature;
   };
 
   const handleMint = async () => {
-    if (!signature) {
-      await getSignature();
+    if (!address) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please connect your wallet first.",
+      });
+      return;
     }
 
-    // 编码消息
-    const message = encodeAbiParameters(
-      parseAbiParameters('address, uint256'),
-      [address as `0x${string}`, BigInt(Number(currentTokenId) + 1)]
-    );
+    if (currentTokenId === undefined) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Unable to fetch current token ID. Please try again.",
+      });
+      return;
+    }
 
-    // 计算消息哈希
-    const messageHash = keccak256(message);
+    if (!isCaptchaVerified) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please complete the captcha verification first.",
+      });
+      return;
+    }
 
-    // 计算以太坊签名消息哈希
-    const ethSignedMessageHash = keccak256(
-      toBytes(`\x19Ethereum Signed Message:\n32${messageHash.slice(2)}`)
-    );
+    if (!hasSecurityToken) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description:
+          "Minting is not allowed in private browsing mode without a security token.",
+      });
+      return;
+    }
 
-    const recoveredAddress = await recoverMessageAddress({
-      message: { raw: messageHash },
-      signature: signature as `0x${string}`,
-    });
+    let currentSignature = signature;
+    if (!currentSignature) {
+      try {
+        currentSignature = await getSignature();
+      } catch (error) {
+        console.error("Error getting signature:", error);
+        return;
+      }
+    }
 
-    console.log('Recovered address:', recoveredAddress);
-    console.log('Original message:', message);
-    console.log('Message hash:', messageHash);
-    console.log('Eth Signed Message Hash:', ethSignedMessageHash);
-    console.log('Signature:', signature);
+    if (!currentSignature) {
+      console.log("Signature is still missing after attempt to get it");
+      // toast({
+      //   variant: "destructive",
+      //   title: "Error",
+      //   description: "Signature is missing. Please try again.",
+      // });
+      return;
+    }
 
-    await writeContractAsync({
-      abi: NFT_CONTRACT_ABI,
-      address: NFT_CONTRACT_ADDRESS as `0x${string}`,
-      functionName: "mintNFT",
-      args: [signature],
-    });
+    try {
+      await writeContractAsync({
+        abi: NFT_CONTRACT_ABI,
+        address: NFT_CONTRACT_ADDRESS as `0x${string}`,
+        functionName: "mintNFT",
+        args: [currentSignature],
+      });
+    } catch (error) {
+      console.error("Error minting NFT:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to mint NFT. Please try again.",
+      });
+    }
   };
 
   useEffect(() => {
@@ -127,6 +242,8 @@ const MintNFT: React.FC = () => {
       });
       setIsCaptchaVerified(false);
       captchaActionRef.current?.refresh();
+      refreshTotalSupply();
+      setSignature(null);
     }
   }, [isConfirmed, toast]);
 
@@ -204,7 +321,7 @@ const MintNFT: React.FC = () => {
       <CardFooter>
         <Button
           onClick={handleMint}
-          disabled={isPending || isConfirming || !isCaptchaVerified || !address}
+          disabled={isPending || isConfirming || !address}
         >
           {isPending
             ? "Confirming..."
